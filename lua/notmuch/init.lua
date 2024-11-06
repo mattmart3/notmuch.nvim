@@ -1,5 +1,6 @@
 local nm = {}
 local v = vim.api
+local u = require'notmuch.util'
 
 local default_cmd = 'mbsync -a'
 if vim.g.NotmuchMaildirSyncCmd == nil then vim.g.NotmuchMaildirSyncCmd = default_cmd end
@@ -196,6 +197,26 @@ nm.compose = function()
 		"Hello, message starts here ...",
 		"",
 	})
+end
+
+nm.reply = function()
+  -- Find email ID from the current buffer
+  local id = u.find_cursor_msg_id()
+
+  if not id then
+    return
+  end
+
+  local db = require("notmuch.cnotmuch")(vim.g.NotmuchDBPath, 0)
+
+  local buf = v.nvim_create_buf(true, true)
+  v.nvim_win_set_buf(0, buf)
+  v.nvim_buf_set_name(buf, vim.g.NotmuchComposeFile)
+  vim.bo.filetype = "mail"
+  vim.bo.buftype = ""
+  vim.bo.modifiable = true
+
+  v.nvim_command("silent 0read! notmuch reply id:" .. id)
 end
 
 return nm
