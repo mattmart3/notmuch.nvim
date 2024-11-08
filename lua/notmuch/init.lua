@@ -1,5 +1,6 @@
 local nm = {}
 local v = vim.api
+local u = require'notmuch.util'
 
 local default_cmd = 'mbsync -a'
 if vim.g.NotmuchMaildirSyncCmd == nil then vim.g.NotmuchMaildirSyncCmd = default_cmd end
@@ -9,6 +10,11 @@ if vim.fn.has('mac') == 1 then default_open_cmd = 'open' end
 if vim.fn.has('wsl') == 1 then default_open_cmd = 'wsl-open' end
 if vim.g.NotmuchOpenCmd == nil then vim.g.NotmuchOpenCmd = default_open_cmd end
 
+local default_send_cmd = 'msmtp -t'
+if vim.g.NotmuchMailSendCmd == nil then vim.g.NotmuchMailSendCmd = default_send_cmd end
+
+local default_compose_file = '/tmp/notmuch.nvim.compose.eml'
+if vim.g.NotmuchComposeFile == nil then vim.g.NotmuchComposeFile = default_compose_file end
 
 local db_path = os.getenv("HOME") .. '/Mail'
 if vim.g.NotmuchDBPath == nil then vim.g.NotmuchDBPath = db_path end
@@ -152,6 +158,65 @@ nm.notmuch_hello = function()
     show_all_tags()
   end
   print("Welcome to Notmuch.nvim! Choose a tag to search it.")
+end
+
+nm.send = function()
+	-- Ask for confirmation
+	local confirm = vim.fn.input("Send email? (y/n): ")
+	if confirm:lower() ~= "y" then
+		print("Email send canceled.")
+		return
+	end
+
+	-- Save the buffer content
+	vim.cmd("write!")
+
+	-- Use msmtp or sendmail to send email
+	local ret = vim.fn.system(vim.g.NotmuchMailSendCmd .. " < " .. vim.g.NotmuchComposeFile)
+
+	if vim.v.shell_error ~= 0 then
+		print("Failed to send email: " .. ret)
+	else
+		print("Email sent successfully!")
+	end
+end
+
+-- Open a new buffer for composing email
+nm.compose = function()
+	local buf = v.nvim_create_buf(true, true)
+	v.nvim_win_set_buf(0, buf)
+	v.nvim_buf_set_name(buf, vim.g.NotmuchComposeFile)
+	vim.bo.filetype = "mail"
+	vim.bo.buftype = ""
+	vim.bo.modifiable = true
+	vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+		"To: ",
+		"Cc: ",
+		"Subject: ",
+		"",
+		"Hello, message starts here ...",
+		"",
+	})
+end
+
+nm.reply = function()
+  -- Find email ID from the current buffer
+  local id = u.find_cursor_msg_id()
+
+  if not id then
+    return
+  end
+
+  local db = require("notmuch.cnotmuch")(vim.g.NotmuchDBPath, 0)
+
+  local buf = v.nvim_create_buf(true, true)
+  v.nvim_win_set_buf(0, buf)
+  v.nvim_buf_set_name(buf, vim.g.NotmuchComposeFile)
+  vim.bo.filetype = "mail"
+  vim.bo.buftype = ""
+  vim.bo.modifiable = true
+
+  v.nvim_command("silent 0read! notmuch reply id:" .. id)
 end
 
 return nm
