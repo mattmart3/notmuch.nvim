@@ -1,3 +1,4 @@
+let nm = v:lua.require('notmuch')
 
 if match(bufname("%"), "^thread:") != -1
 	setlocal foldmethod=marker

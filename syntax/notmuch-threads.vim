@@ -9,7 +9,8 @@ syntax match nmDate		"\s\+[0-9A-Za-z.\-]\+\(\s[a-z0-9:.]\+\)\?\(\sago\)\?"	conta
 syntax match nmThreadCount	"\s\+\[[0-9]\+\/[0-9()]\+\]"				contained nextgroup=nmFrom
 syntax match nmFrom		"\s\+.*;"						contained nextgroup=nmSubject
 syntax match nmSubject		/.\{0,}\(([^()]\+)$\)\@=/				contained nextgroup=nmTags
-syntax match nmTags		"(.*)$"							contained
+syntax match nmTags		"(.*)$"							contained contains=nmTagsImportant
+syntax match nmTagsImportant	"\(unread\|flagged\)"					contained
 
 highlight link nmThreadNum	Type
 highlight link nmThreadEllipsis	Normal
@@ -17,5 +18,6 @@ highlight link nmThreadID	Include
 highlight link nmDate		String
 highlight link nmThreadCount	Comment
 highlight nmFrom		ctermfg=224 guifg=Orange gui=italic
-highlight link nmSubject	Statement
+highlight link nmSubject	Text
 highlight link nmTags		Comment
+highlight link nmTagsImportant	Statement
