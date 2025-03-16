@@ -51,6 +51,9 @@ C.defaults = function()
     sync = {
       sync_mode = "buffer",
     },
+    view_handler = function(attachment)
+      return vim.fn.system({"view-handler", attachment.path})
+    end,
     keymaps = { -- This should capture all notmuch.nvim related keymappings
       sendmail = '<C-g><C-g>',
       attachment_window = '<C-g><C-a>',
