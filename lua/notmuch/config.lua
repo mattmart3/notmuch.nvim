@@ -51,6 +51,9 @@ C.defaults = function()
     sync = {
       sync_mode = "buffer",
     },
+    open_handler = function(attachment)
+      os.execute('xdg-open ' .. attachment.path .. ' >/dev/null 2>/dev/null')
+    end,
     view_handler = function(attachment)
       return vim.fn.system({"view-handler", attachment.path})
     end,
