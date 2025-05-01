@@ -10,25 +10,25 @@ command -buffer -range -complete=custom,notmuch#CompTags -nargs=+ TagRm :call ta
 command -buffer -range -complete=custom,notmuch#CompTags -nargs=+ TagToggle :call tag.thread_toggle_tag(<q-args>, <line1>, <line2>)
 command -buffer -range DelThread :call tag.thread_add_tag("del", <line1>, <line2>) | :call tag.thread_rm_tag("inbox", <line1>, <line2>)
 
-nmap <buffer> <silent> <CR> :call nm.show_thread()<CR>
-nmap <buffer> <silent> r :call r.refresh_search_buffer()<CR>
-nmap <buffer> <silent> q :bwipeout<CR>
-nmap <buffer> <silent> % :call s.sync_maildir()<CR>
-nmap <buffer> + :TagAdd 
-xmap <buffer> + :TagAdd 
-nmap <buffer> - :TagRm 
-xmap <buffer> - :TagRm 
-nmap <buffer> = :TagToggle 
-xmap <buffer> = :TagToggle 
-nmap <buffer> a :TagToggle inbox<CR>j
-xmap <buffer> a :TagToggle inbox<CR>
-nmap <buffer> A :TagRm inbox unread<CR>j
-xmap <buffer> A :TagRm inbox unread<CR>
-nmap <buffer> x :TagToggle unread<CR>
-xmap <buffer> x :TagToggle unread<CR>
-nmap <buffer> f :TagToggle flagged<CR>j
-xmap <buffer> f :TagToggle flagged<CR>
-nmap <buffer> <silent> C :call v:lua.require('notmuch.send').compose()<CR>
-nmap <buffer> dd :DelThread<CR>j
-xmap <buffer> d :DelThread<CR>
-nmap <buffer> <silent> D :lua require('notmuch.delete').purge_del()<CR>
+nnoremap <buffer> <silent> <CR> :call nm.show_thread()<CR>
+nnoremap <buffer> <silent> r :call r.refresh_search_buffer()<CR>
+nnoremap <buffer> <silent> q :bwipeout<CR>
+nnoremap <buffer> <silent> % :call s.sync_maildir()<CR>
+nnoremap <buffer> + :TagAdd 
+xnoremap <buffer> + :TagAdd 
+nnoremap <buffer> - :TagRm 
+xnoremap <buffer> - :TagRm 
+nnoremap <buffer> = :TagToggle 
+xnoremap <buffer> = :TagToggle 
+nnoremap <buffer> a :TagToggle inbox<CR>j
+xnoremap <buffer> a :TagToggle inbox<CR>
+nnoremap <buffer> A :TagRm inbox unread<CR>j
+xnoremap <buffer> A :TagRm inbox unread<CR>
+nnoremap <buffer> x :TagToggle unread<CR>
+xnoremap <buffer> x :TagToggle unread<CR>
+nnoremap <buffer> f :TagToggle flagged<CR>j
+xnoremap <buffer> f :TagToggle flagged<CR>
+nnoremap <buffer> <silent> C :call v:lua.require('notmuch.send').compose()<CR>
+nnoremap <buffer> dd :DelThread<CR>j
+xnoremap <buffer> d :DelThread<CR>
+nnoremap <buffer> <silent> D :lua require('notmuch.delete').purge_del()<CR>
