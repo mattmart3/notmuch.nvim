@@ -161,9 +161,16 @@ end
 --
 -- This function takes a file containing a completed message and send it to the
 -- recipient(s) using `msmtp`. Typically you will invoke this function after
--- confirming from a reply or newly composed email message
+-- confirming from a reply or newly composed email message. The invocation of
+-- `msmtp` determines by itself the recipient and the sender.
+--
+-- If the configuration `config.options.logfile` is set, then it invokes
+-- `msmtp` with logging capability to that file. Otherwise, it logs to
+-- temporary file.
 --
 -- @param filename string: path to the email message you would like to send
+--
+-- @return string: The log message provided by `msmtp`
 --
 -- @usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
@@ -171,17 +178,27 @@ s.sendmail = function(filename)
   -- Read the email file content
   local content = vim.fn.readfile(filename)
 
-  -- Execute `msmtp` without shell, passing content via stdin
-  local output = vim.fn.system({ 'msmtp', '-t' }, content)
+  -- Build msmtp command with optional logfile
+  local cmd = { 'msmtp', '-t', '--read-envelope-from' }
+  if config.options.logfile then
+    table.insert(cmd, '--logfile=' .. config.options.logfile)
+  end
+
+  local output = vim.fn.system(cmd, content)
   local exit_code = vim.v.shell_error
 
   -- Check for errors
   if exit_code ~= 0 then
-    error(string.format('Failed to send email: %s\nError: %s', filename, output))
+    vim.notify(
+      '❌ Failed to send email\n' .. vim.trim(output),
+      vim.log.levels.ERROR
+    )
+    return false
   end
 
   -- Success
-  print('Successfully sent email: ' .. filename)
+  vim.notify('✅ Email sent successfully', vim.log.levels.INFO)
+  return true
 end
 
 -- Reply to an email message
@@ -278,6 +295,7 @@ s.compose = function(to)
 
   -- TODO: Add ability to modify default body message and signature
   local headers = {
+    'From: ' .. config.options.from,
     'To: ' .. to,
     'Cc: ',
     'Subject: ',

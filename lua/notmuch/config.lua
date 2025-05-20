@@ -48,6 +48,7 @@ C.defaults = function()
     from = name .. ' <' .. email .. '>',
     maildir_sync_cmd = 'mbsync -a',
     open_cmd = 'xdg-open',
+    logfile = nil,
     sync = {
       sync_mode = "buffer",
     },
