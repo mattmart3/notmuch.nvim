@@ -41,7 +41,7 @@ end
 -- @usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
 s.sendmail = function(filename)
-  os.execute('msmtp -t <' .. filename)
+  os.execute('msmtp -t --read-envelope-from <' .. filename)
   print('Successfully sent email: ' .. filename)
 end
 
