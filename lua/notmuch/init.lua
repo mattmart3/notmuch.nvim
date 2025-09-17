@@ -149,7 +149,7 @@ nm.show_thread = function(s)
   -- Place cursor at head of buffer and prepare display and disable modification
   v.nvim_buf_set_lines(buf, -3, -1, true, {})
   v.nvim_win_set_cursor(0, { 1, 0})
-  vim.bo.filetype="mail"
+  vim.bo.filetype="gitsendemail" --TODO: add config option to choose between mail and gitsendemail
   vim.bo.modifiable = false
 end
 
