@@ -23,7 +23,7 @@ a.run_notmuch_search = function(search, buf, on_complete)
   -- Spawn subprocess using vim.loop (deprecated?)
   local handle
   handle = vim.loop.spawn("notmuch", {
-    args = {"search", search},
+    args = {"search", "--sort", "oldest-first", search},
     stdio = {nil, stdout, stderr}
   }, vim.schedule_wrap(function()
     -- Close the pipes and handle
@@ -46,10 +46,14 @@ a.run_notmuch_search = function(search, buf, on_complete)
       local lines = vim.split(partial_data, '\n')
       -- collect incomplete line at the tail of lines
       partial_data = table.remove(lines)
+      local reversed_lines = {}
+      for i = #lines, 1, -1 do
+        table.insert(reversed_lines, lines[i])
+      end
 
       -- Paste lines into the tail of `buf`
       vim.bo[buf].modifiable = true
-      vim.api.nvim_buf_set_lines(buf, -1, -1, false, lines)
+      vim.api.nvim_buf_set_lines(buf, -1, -1, false, reversed_lines)
       vim.bo[buf].modifiable = false
     end
   end))
