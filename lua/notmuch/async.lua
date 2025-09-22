@@ -20,12 +20,43 @@ a.run_notmuch_search = function(search, buf, on_complete)
   local stdout = vim.loop.new_pipe(false)
   local stderr = vim.loop.new_pipe(false)
 
+  -- Helper variable for maintaining incomplete lines between reads
+  local partial_data = ""
+
   -- Spawn subprocess using vim.loop (deprecated?)
   local handle
+
   handle = vim.loop.spawn("notmuch", {
-    args = {"search", "--sort", "oldest-first", search},
+    args = {"search", "--format", "json", "--sort", "oldest-first", search},
     stdio = {nil, stdout, stderr}
   }, vim.schedule_wrap(function()
+    -- XXX: This loads everything at the end.
+    -- TODO: It should be handled with multiple notmuch searches with fixed limit and progressive offset.
+    local ok, json_tbl = pcall(vim.json.decode, partial_data)
+    if not ok or type(json_tbl) ~= 'table' then
+      vim.notify(('ERROR: Failed to decode json: %s'):format(json_tbl or 'unknown error'))
+    else
+      local lines = {}
+      for i = #json_tbl, 1, -1 do -- XXX: reverse order to adjust oldest-first list
+        local item = json_tbl[i]
+        local line = string.format(
+          "thread:%s %s [%d/%d] %s; %s (%s)",
+          item.thread,
+          item.date_relative,
+          item.matched,
+          item.total,
+          #item.authors <= 30 and item.authors or string.sub(item.authors, 1, 20) .. "...",
+          item.subject,
+          table.concat(item.tags, " ")
+        )
+        table.insert(lines, line)
+      end
+      -- Paste lines into the tail of `buf`
+      vim.bo[buf].modifiable = true
+      vim.api.nvim_buf_set_lines(buf, -1, -1, false, lines)
+      vim.bo[buf].modifiable = false
+    end
+
     -- Close the pipes and handle
     stdout:close()
     stderr:close()
@@ -35,26 +66,11 @@ a.run_notmuch_search = function(search, buf, on_complete)
     on_complete()
   end))
 
-  -- Helper variable for maintaining incomplete lines between reads
-  local partial_data = ""
-
   -- Read data from stdout and write it to the buffer
   vim.loop.read_start(stdout, vim.schedule_wrap(function(_, data)
     if data then
       -- Combine earlier incomplete chunk with newest read
       partial_data = partial_data .. data
-      local lines = vim.split(partial_data, '\n')
-      -- collect incomplete line at the tail of lines
-      partial_data = table.remove(lines)
-      local reversed_lines = {}
-      for i = #lines, 1, -1 do
-        table.insert(reversed_lines, lines[i])
-      end
-
-      -- Paste lines into the tail of `buf`
-      vim.bo[buf].modifiable = true
-      vim.api.nvim_buf_set_lines(buf, -1, -1, false, reversed_lines)
-      vim.bo[buf].modifiable = false
     end
   end))
 
