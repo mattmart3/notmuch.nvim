@@ -85,7 +85,19 @@ end
 -- @usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
 s.sendmail = function(filename)
-  os.execute('msmtp -t <' .. filename)
+  -- Read the email file content
+  local content = vim.fn.readfile(filename)
+
+  -- Execute `msmtp` without shell, passing content via stdin
+  local output = vim.fn.system({'msmtp', '-t'}, content)
+  local exit_code = vim.v.shell_error
+
+  -- Check for errors
+  if exit_code ~= 0 then
+  	error(string.format('Failed to send email: %s\nError: %s', filename, output))
+  end
+
+  -- Success
   print('Successfully sent email: ' .. filename)
 end
 
