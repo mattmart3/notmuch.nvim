@@ -13,12 +13,14 @@ local v = vim.api
 m.create_mime_attachments = function (paths)
   local mimes = {}
   for _, path in ipairs(paths) do
-    table.insert(mimes, {
-      file = path,
-      type = m.get_mime_type(path),
-      attachment = true,
-      encoding = "base64",
-    })
+    if path ~= "" then
+      table.insert(mimes, {
+	file = path,
+	type = m.get_mime_type(path),
+	attachment = true,
+	encoding = "base64",
+      })
+    end
   end
   return mimes
 end
