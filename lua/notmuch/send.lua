@@ -32,6 +32,52 @@ local confirm_sendmail = function()
   end
 end
 
+--- Builds plain text msg from contents into single-part MIME message of main
+--- msg buffer and outputs it in place.
+---
+--- If the composed email has no attachments, it makes more sense (cheaper and
+--- more idiomatic) to send as a single part (not MIME `multipart/mixed`) of
+--- type `text/plain; charset=UTF-8`.
+---
+--- @param buf integer: buffer ID of the message compose file
+local build_plain_msg = function(buf)
+  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
+
+  -- Extract attributes and remove from main message buffer `buf`
+  local attributes, msg = m.get_msg_attributes(main_lines)
+  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
+  vim.cmd.write({bang = true})
+
+  -- Build MIME single-part email:
+  -- - Header
+  -- - MIME headers
+  -- - Blank line
+  -- - Body
+  local plain_msg = {}
+
+  -- Add email headers (To, From, Subject, etc.)
+  for key, value in pairs(attributes) do
+    table.insert(plain_msg, key .. ": " .. value)
+  end
+
+  -- Add MIME headers (required for UTF-8 support per RFC2045)
+  table.insert(plain_msg, "MIME-Version: 1.0")
+  table.insert(plain_msg, "Content-Type: text/plain; charset=utf-8")
+  table.insert(plain_msg, "Content-Transfer-Encoding: 8bit")
+
+  -- Add blank line separator (required by RFC5322)
+  table.insert(plain_msg, "")
+
+  -- Add message body
+  for _, line in ipairs(msg) do
+    table.insert(plain_msg, line)
+  end
+
+  -- Write complete email to file
+  v.nvim_buf_set_lines(buf, 0, -1, false, plain_msg)
+  vim.cmd.write({bang = true})
+end
+
 -- Builds mime msg from contents of main msg buffer and attachment buffer
 local build_mime_msg = function(buf, buf_attach, compose_filename)
     local attach_lines = vim.api.nvim_buf_get_lines(buf_attach, 0, -1, false)
@@ -184,7 +230,11 @@ s.compose = function(to)
   -- Keymap for sending the email
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
     if confirm_sendmail() then
-      build_mime_msg(buf, buf_attach, compose_filename)
+      if u.empty_attachment_window(buf_attach) then
+	build_plain_msg(buf)
+      else
+	build_mime_msg(buf, buf_attach, compose_filename)
+      end
 
       s.sendmail(compose_filename)
     end

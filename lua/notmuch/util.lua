@@ -1,6 +1,33 @@
 local u = {}
 local v = vim.api
 
+--- Checks if the composed emails contains any attachments expected to be sent.
+---
+--- This is mainly used after composing the email and triggering the email to be
+--- sent. More specfically, it returns `true` if the attachment window/buffer
+--- contains any attachments to be sent along with the email. This is done by
+--- checking if the attachment window has any text in it (if there is no text,
+--- then no attachments are included).
+---
+--- This is particularly useful in figuring out how to formulate the composed
+--- message to be fed to the email server.
+---
+--- - If there are no attachments, the caller will formulate a plain text
+---   message with only the body with `build_plain_msg`.
+---
+--- - If there are attachments, the caller will invoke `build_mime_msg`.
+---
+--- @param buf_attach integer: buffer ID of the attachment window
+--- @return boolean: true if attachment buffer has attachments (any text)
+u.empty_attachment_window = function (buf_attach)
+  for _, line in ipairs(v.nvim_buf_get_lines(buf_attach, 0, -1, false)) do
+    if line:find("%S") then
+      return false
+    end
+  end
+  return true
+end
+
 u.file_exists = function(path)
   local file = io.open(path, 'r')
   if file then
