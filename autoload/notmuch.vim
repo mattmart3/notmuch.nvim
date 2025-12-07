@@ -26,12 +26,37 @@ function! notmuch#CompSearchTerms(ArgLead, CmdLine, CursorPos) abort
     return "to:" .. join(l:to_list, "\nto:")
   endif
   if match(a:ArgLead, "folder:") != -1
-    let l:folder_list = split(system('find ' .. g:notmuch_mailroot .. ' -type d -name cur -print0| sed -n -z "s|^' .. g:notmuch_mailroot .. '/*||p" | xargs -0 dirname | sort | uniq'), '\n')
-    return "folder:" .. join(l:folder_list, "\nfolder:")
+    let l:cur_dirs = split(system('find ' .. shellescape(g:notmuch_mailroot) .. ' -type d -name cur'), '\n')
+    let folder_list = []
+    let l:mailroot_pattern = '^' .. escape(g:notmuch_mailroot, '/.\\$*[]^') .. '/\?'
+    for dir in l:cur_dirs
+      let l:parent = fnamemodify(dir, ':h')
+      let l:relative = substitute(l:parent, l:mailroot_pattern, '', '')
+      if !empty(l:relative)
+        " Quote folder names that contain spaces or special characters
+        if match(l:relative, '[ \[\]]') != -1
+          let l:relative = '"' .. l:relative .. '"'
+        endif
+        call add(l:folder_list, l:relative)
+      endif
+    endfor
+    return "folder:" .. join(uniq(sort(l:folder_list)), "\nfolder:")
   endif
   if match(a:ArgLead, "path:") != -1
-    let l:path_list = split(system('find ' .. g:notmuch_mailroot .. ' -type d -print0| sed -n -z "s|^' .. g:notmuch_mailroot .. '/*||p" | sort -z | uniq -z | tr "\0" "\n"'), '\n')
-    return "path:" .. join(l:path_list, "\npath:")
+    let l:all_dirs = split(system('find ' .. shellescape(g:notmuch_mailroot) .. ' -type d'), '\n')
+    let l:path_list = []
+    let l:mailroot_pattern = '^' .. escape(g:notmuch_mailroot, '/.\\$*[]^') .. '/\?'
+    for dir in l:all_dirs
+      let l:relative = substitute(dir, l:mailroot_pattern, '', '')
+      if !empty(l:relative)
+        " Quote paths that contain spaces or special characters
+        if match(l:relative, '[ \[\]]') != -1
+          let l:relative = '"' .. l:relative .. '"'
+        endif
+        call add(l:path_list, l:relative)
+      endif
+    endfor
+    return "path:" .. join(uniq(sort(l:path_list)), "\npath:")
   endif
   return join(s:search_terms_list, "\n")
 endfunction
