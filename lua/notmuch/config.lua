@@ -6,8 +6,46 @@ local C = {}
 -- including keymaps. The defaults can be overridden with options `opts` passed
 -- by the user in the `setup()` function.
 C.defaults = function()
+  -- Helper to safely get notmuch config variables
+  local function get_notmuch_config(key, fallback)
+    local result = vim.fn.system('notmuch config get ' .. key):gsub('\n', '')
+    if vim.v.shell_error ~= 0 or result == '' or result:match('^%s*$') or result:match('notmuch setup') then
+      if result:match('command not found') or result:match('not found') then
+	vim.notify('notmuch command not found. Please install notmuch.', vim.log.levels.ERROR)
+      end
+      return fallback
+    end
+    return result
+  end
+
+  local name = get_notmuch_config('user.name', nil)
+  local email = get_notmuch_config('user.primary_email', nil)
+  local db_path = get_notmuch_config('database.path', nil)
+
+  -- Validate required configuration form notmuch and fail-fast
+  if not db_path then
+    vim.notify(
+      'notmuch.nvim: database.path not configured.\n' ..
+      'Please run: notmuch setup',
+      vim.log.levels.ERROR
+    )
+    return nil
+  end
+
+  -- Validate user name and email from notmuch config
+  if not name or not email then
+    vim.notify(
+      'notmuch.nvim: user.name or user.primary_email not configured.\n' ..
+      'Please run: notmuch setup',
+      vim.log.levels.WARN
+    )
+    name = name or 'User'
+    email = email or 'user@localhost'
+  end
+
   local defaults = {
-    notmuch_db_path = os.getenv('HOME') .. '/Mail',
+    notmuch_db_path = db_path,
+    from = name .. ' <' .. email .. '>',
     maildir_sync_cmd = 'mbsync -a',
     open_cmd = 'xdg-open',
     keymaps = { -- This should capture all notmuch.nvim related keymappings
@@ -29,7 +67,18 @@ end
 ---@usage: see `init.lua`'s `setup()` function for invocation
 C.setup = function(opts)
   local options = opts or {}
-  C.options = vim.tbl_deep_extend('force', C.defaults(), options)
+  local defaults = C.defaults()
+
+  if not defaults then
+    vim.notify(
+      'notmuch.nvim: Failed to load. Please configure notmuch first.',
+      vim.log.levels.ERROR
+    )
+    return false
+  end
+
+  C.options = vim.tbl_deep_extend('force', defaults, options)
+  return true
 end
 
 return C

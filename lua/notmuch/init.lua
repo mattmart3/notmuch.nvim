@@ -22,7 +22,11 @@ local config = require('notmuch.config')
 -- }
 nm.setup = function(opts)
   -- Setup configuration defaults and/or user options
-  config.setup(opts)
+  local success = config.setup(opts)
+
+  if not success then
+    return
+  end
 
   -- Set up the main entry point command :Notmuch
   vim.cmd[[command Notmuch :lua require('notmuch').notmuch_hello()]]
