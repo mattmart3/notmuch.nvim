@@ -27,10 +27,12 @@ end
 
 
 
--- Extracts `Key: Value` pair from a list of lines
+-- Extracts `Key: Value` pair from a list of lines (RFC 5322 compliant)
 --
 -- This function takes in a list of lines and extracts the `Key: Value` pair if present,
--- it then adds them to a table as { key = value }
+-- it then adds them to a table as { key = value }. Parsing stops at the first blank line
+-- (per RFC 5322), and all subsequent lines are treated as message body.
+-- Supports RFC 5322 header continuation (lines starting with whitespace).
 --
 -- @param lines string: input string
 --
@@ -38,14 +40,39 @@ end
 m.get_msg_attributes = function(lines)
   local attributes = {}
   local msg = {}
+  local in_headers = true
+  local last_header_key = nil
+
   for _, line in ipairs(lines) do
-    if string.find(line, ":") then
-      local sep = u.split(line, "([^:]+)")
-      attributes[sep[1]] = sep[2]
+    if in_headers then
+      -- Check for blank line (header/body separator per RFC 5322)
+      if line == "" or line:match("^%s*$") then
+        in_headers = false
+        table.insert(msg, line)
+
+      -- Check for header continuation (RFC 5322 folding)
+      elseif line:match("^[ \t]") and last_header_key then
+        attributes[last_header_key] = attributes[last_header_key] .. " " .. line:gsub("^%s+", "")
+
+      -- Check for header line (contains ':')
+      elseif line:match(":") then
+        local key, value = line:match("^([^:]+):%s*(.*)$")
+        if key then
+          attributes[key] = value
+          last_header_key = key
+        end
+
+      -- First non-header line (no ':'), start body
+      else
+        in_headers = false
+        table.insert(msg, line)
+      end
     else
+      -- Already in body, add all lines
       table.insert(msg, line)
     end
   end
+
   return attributes, msg
 end
 
