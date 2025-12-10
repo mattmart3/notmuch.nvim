@@ -38,6 +38,38 @@ u.file_exists = function(path)
   end
 end
 
+--- Validates that a file path is readable and suitable for attachment
+---
+--- This function checks if a file exists, is readable, and is a regular file
+--- (not a directory or broken symlink). If validation fails, returns false
+--- and an error message suitable for user display.
+---
+--- @param path string: file path to validate
+--- @return boolean: true if file is valid for attachment
+--- @return string|nil: error message if validation failed, nil if successful
+u.validate_attachment_file = function(path)
+  -- Attempt to open file for reading
+  local file, err = io.open(path, 'r')
+
+  if not file then
+    return false, err
+  end
+
+  file:close()
+
+  -- Use vim.loop to check if it's a regular file (not directory/special file)
+  local stat = vim.loop.fs_stat(path)
+  if not stat then
+    return false, "Unable to read file metadata"
+  end
+
+  if stat.type ~= 'file' then
+    return false, string.format("Path is a %s, not a regular file", stat.type)
+  end
+
+  return true, nil
+end
+
 -- there is a better way to do this !!!
 -- Splits a string given a delimiter
 --

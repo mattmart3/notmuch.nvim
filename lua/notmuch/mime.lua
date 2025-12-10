@@ -3,25 +3,57 @@ local u = require('notmuch.util')
 local v = vim.api
 
 
--- Generates a mime attachment table
---
--- This function takes in a list of paths and get's the mime type and sets the encoding
---
--- @param paths string: input string
---
--- @returns out table: table of mime attachments
+--- Generates a mime attachment table
+---
+--- This function takes in a list of paths, validates each file exists and is
+--- readable, gets the mime type, and sets the encoding. If any file is invalid,
+--- throws an error to prevent sending email with corrupted attachments.
+---
+--- @param paths table: list of file path strings
+--- @return table: table of mime attachments
+--- @throws error if any attachment file is invalid
 m.create_mime_attachments = function (paths)
   local mimes = {}
+  local invalid_files = {}  -- Collect all errors for better UX
+
   for _, path in ipairs(paths) do
     if path ~= "" then
-      table.insert(mimes, {
-	file = path,
-	type = m.get_mime_type(path),
-	attachment = true,
-	encoding = "base64",
-      })
+      -- Validate file before adding to attachments
+      local valid, err = u.validate_attachment_file(path)
+
+      if not valid then
+        -- Collect error for reporting
+        table.insert(invalid_files, {
+          path = path,
+          reason = err or "Unknown error"
+        })
+      else
+        -- File is valid, add to attachments
+        table.insert(mimes, {
+          file = path,
+          type = m.get_mime_type(path),
+          attachment = true,
+          encoding = "base64",
+        })
+      end
     end
   end
+
+  -- If any files were invalid, throw error with details
+  if #invalid_files > 0 then
+    local error_msg = "Failed to attach file(s):\n\n"
+
+    for _, invalid in ipairs(invalid_files) do
+      error_msg = error_msg .. string.format("  • %s\n    Reason: %s\n\n",
+                                              invalid.path, invalid.reason)
+    end
+
+    error_msg = error_msg .. "Cannot send email with invalid attachments.\n"
+    error_msg = error_msg .. "Please verify all attachment paths and try again."
+
+    error(error_msg)
+  end
+
   return mimes
 end
 
@@ -197,28 +229,37 @@ m.make_mime_msg = function(mime_table)
       table.insert(mime, "Content-Disposition: inline")
     end
 
+    -- Open file (should never fail - validation happens in create_mime_attachments)
     local file, err = io.open(mime_table.file, "r")
+
+    -- Defensive check: this should never happen if validation worked correctly
+    if not file then
+      error(string.format(
+        "INTERNAL ERROR: Failed to open validated attachment file: %s\nReason: %s\n" ..
+        "This should not happen - please report this bug.",
+        mime_table.file, err or "Unknown error"
+      ))
+    end
 
     table.insert(mime, "")
     local content = {}
     local base64 = require("notmuch.base64")
 
-    if file ~= nil then
-      if mime_table.encoding == "base64" then
-        content = base64.encode(file:read("*a"))
+    if mime_table.encoding == "base64" then
+      content = base64.encode(file:read("*a"))
 
-        -- RFC 2045 defines that the maximum line length for encoded base64 is 76 chars
-        local split = u.split_length(content, 76)
-        for _,value in ipairs(split) do
-          table.insert(mime, value)
-        end
-      else
-        for line in file:lines() do
-          table.insert(mime, line)
-        end
+      -- RFC 2045 defines that the maximum line length for encoded base64 is 76 chars
+      local split = u.split_length(content, 76)
+      for _,value in ipairs(split) do
+        table.insert(mime, value)
+      end
+    else
+      for line in file:lines() do
+        table.insert(mime, line)
       end
     end
 
+    file:close()  -- Close file handle
     table.insert(mime, "")
 
   end
