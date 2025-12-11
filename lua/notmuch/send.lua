@@ -83,16 +83,16 @@ local build_mime_msg = function(buf, buf_attach, compose_filename)
     local attach_lines = vim.api.nvim_buf_get_lines(buf_attach, 0, -1, false)
     local main_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
-
-    -- capture attributes and remove from main message buffer
+    -- Extract headers and body (read-only operation)
     local attributes, msg = m.get_msg_attributes(main_lines)
+
+    -- VALIDATE attachments BEFORE modifying buffer/file
+    -- If validation fails, error is thrown here and buffer remains intact
+    local attachments = m.create_mime_attachments(attach_lines)
+
+    -- Now safe to modify buffer - attachments are validated
     v.nvim_buf_set_lines(buf, 0, -1, false, msg)
     vim.cmd.write({bang = true})
-
-
-
-    -- get attachments and build mime table
-    local attachments = m.create_mime_attachments(attach_lines)
     local mimes = {{
           file = compose_filename,
           type = "text/plain; charset=utf-8",
