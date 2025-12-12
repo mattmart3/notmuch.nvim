@@ -205,7 +205,7 @@ s.compose = function(to)
     'Cc: ',
     'Subject: ',
     '',
-    'Message body goes here',
+    'Message body goes here. Add attachments with "' .. config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
   }
 
   -- Create new buffer
