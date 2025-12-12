@@ -120,6 +120,43 @@ local build_mime_msg = function(buf, buf_attach, compose_filename)
   vim.cmd.write({ bang = true })
 end
 
+local build_mime_msg_from_attachments = function(buf, attachment_paths, message_filename)
+  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
+
+  -- Extract headers and body (read-only operation)
+  local attributes, msg = m.get_msg_attributes(main_lines)
+
+  -- VALIDATE attachments BEFORE modifying buffer/file
+  local attachments = m.create_mime_attachments(attachment_paths)
+
+  -- Safe to modify buffer now
+  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
+  vim.cmd.write({ bang = true })
+
+  -- Build MIME parts: main body + attachments
+  local mimes = { {
+    file = message_filename,
+    type = "text/plain; charset=utf-8",
+  } }
+
+  for _, attachment in ipairs(attachments) do
+    table.insert(mimes, attachment)
+  end
+
+  local mime_table = {
+    version = "Mime-Version: 1.0",
+    type = "multipart/mixed",
+    encoding = "8 bit",
+    attributes = attributes,
+    mime = mimes,
+  }
+
+  local mime_msg = m.make_mime_msg(mime_table)
+  v.nvim_buf_set_lines(buf, 0, -1, false, mime_msg)
+
+  vim.cmd.write({ bang = true })
+end
+
 -- Send a completed message
 --
 -- This function takes a file containing a completed message and send it to the
@@ -178,9 +215,49 @@ s.reply = function()
   vim.bo.bufhidden = "wipe"          -- Automatically wipe buffer when closed
   v.nvim_win_set_cursor(0, { 1, 0 }) -- Return cursor to top of file
 
+  -- Initialize attachments variable
+  -- Sample "attachment" object:
+  --   {
+  --     file = 'path/to/attachment',
+  --     size = uv.fs_stat(),
+  --     mime = mime.get_mime_type()
+  --     valid = true or false -- u.validate_attachment_file()
+  --   }
+  vim.api.nvim_buf_set_var(buf, 'notmuch_attachments', {})
+
+  -- Define commands for attachment management (attach_cmd.lua)
+  local attach_cmd = require('notmuch.attach_cmd')
+
+  v.nvim_buf_create_user_command(buf, 'Attach', attach_cmd.attach_handler(buf), {
+    nargs = 1,
+    complete = 'file',
+    desc = 'Add file to email attachments'
+  })
+
+  v.nvim_buf_create_user_command(buf, 'AttachRemove', attach_cmd.remove_handler(buf), {
+    nargs = 1,
+    complete = attach_cmd.remove_completion(buf),
+    desc = 'Remove attachment by filepath'
+  })
+
+  v.nvim_buf_create_user_command(buf, 'AttachList', attach_cmd.list_handler(buf), {
+    nargs = 0,
+    desc = 'List current email attachments'
+  })
+
   -- Set keymap for sending
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
-    confirm_sendmail(reply_filename)
+    if confirm_sendmail() then
+      local attachments = v.nvim_buf_get_var(buf, 'notmuch_attachments')
+
+      if #attachments == 0 then
+        build_plain_msg(buf)
+      else
+        build_mime_msg_from_attachments(buf, attachments, reply_filename)
+      end
+
+      s.sendmail(reply_filename)
+    end
   end, { buffer = true })
 end
 
@@ -205,7 +282,8 @@ s.compose = function(to)
     'Cc: ',
     'Subject: ',
     '',
-    'Message body goes here. Add attachments with "' .. config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
+    'Message body goes here. Add attachments with "' ..
+    config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
   }
 
   -- Create new buffer
