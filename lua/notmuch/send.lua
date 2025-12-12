@@ -46,7 +46,7 @@ local build_plain_msg = function(buf)
   -- Extract attributes and remove from main message buffer `buf`
   local attributes, msg = m.get_msg_attributes(main_lines)
   v.nvim_buf_set_lines(buf, 0, -1, false, msg)
-  vim.cmd.write({bang = true})
+  vim.cmd.write({ bang = true })
 
   -- Build MIME single-part email:
   -- - Header
@@ -75,49 +75,49 @@ local build_plain_msg = function(buf)
 
   -- Write complete email to file
   v.nvim_buf_set_lines(buf, 0, -1, false, plain_msg)
-  vim.cmd.write({bang = true})
+  vim.cmd.write({ bang = true })
 end
 
 -- Builds mime msg from contents of main msg buffer and attachment buffer
 local build_mime_msg = function(buf, buf_attach, compose_filename)
-    local attach_lines = vim.api.nvim_buf_get_lines(buf_attach, 0, -1, false)
-    local main_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local attach_lines = vim.api.nvim_buf_get_lines(buf_attach, 0, -1, false)
+  local main_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
-    -- Extract headers and body (read-only operation)
-    local attributes, msg = m.get_msg_attributes(main_lines)
+  -- Extract headers and body (read-only operation)
+  local attributes, msg = m.get_msg_attributes(main_lines)
 
-    -- VALIDATE attachments BEFORE modifying buffer/file
-    -- If validation fails, error is thrown here and buffer remains intact
-    local attachments = m.create_mime_attachments(attach_lines)
+  -- VALIDATE attachments BEFORE modifying buffer/file
+  -- If validation fails, error is thrown here and buffer remains intact
+  local attachments = m.create_mime_attachments(attach_lines)
 
-    -- Now safe to modify buffer - attachments are validated
-    v.nvim_buf_set_lines(buf, 0, -1, false, msg)
-    vim.cmd.write({bang = true})
-    local mimes = {{
-          file = compose_filename,
-          type = "text/plain; charset=utf-8",
-    }}
+  -- Now safe to modify buffer - attachments are validated
+  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
+  vim.cmd.write({ bang = true })
+  local mimes = { {
+    file = compose_filename,
+    type = "text/plain; charset=utf-8",
+  } }
 
-    for _, v in ipairs(attachments) do
-      table.insert(mimes, v)
-    end
-
-
-
-    local mime_table = {
-      version = "Mime-Version: 1.0",
-      type = "multipart/mixed", -- or multipart/alternative
-      encoding = "8 bit",
-      attributes = attributes,
-      mime = mimes,
-    }
+  for _, v in ipairs(attachments) do
+    table.insert(mimes, v)
+  end
 
 
-    local mime_msg = m.make_mime_msg(mime_table)
-    v.nvim_buf_set_lines(buf, 0, -1, false, mime_msg)
+
+  local mime_table = {
+    version = "Mime-Version: 1.0",
+    type = "multipart/mixed", -- or multipart/alternative
+    encoding = "8 bit",
+    attributes = attributes,
+    mime = mimes,
+  }
 
 
-    vim.cmd.write({bang = true})
+  local mime_msg = m.make_mime_msg(mime_table)
+  v.nvim_buf_set_lines(buf, 0, -1, false, mime_msg)
+
+
+  vim.cmd.write({ bang = true })
 end
 
 -- Send a completed message
@@ -135,12 +135,12 @@ s.sendmail = function(filename)
   local content = vim.fn.readfile(filename)
 
   -- Execute `msmtp` without shell, passing content via stdin
-  local output = vim.fn.system({'msmtp', '-t'}, content)
+  local output = vim.fn.system({ 'msmtp', '-t' }, content)
   local exit_code = vim.v.shell_error
 
   -- Check for errors
   if exit_code ~= 0 then
-  	error(string.format('Failed to send email: %s\nError: %s', filename, output))
+    error(string.format('Failed to send email: %s\nError: %s', filename, output))
   end
 
   -- Success
@@ -175,7 +175,7 @@ s.reply = function()
     vim.cmd('silent 0read! notmuch reply id:' .. id)
   end
 
-  vim.bo.bufhidden = "wipe" -- Automatically wipe buffer when closed
+  vim.bo.bufhidden = "wipe"          -- Automatically wipe buffer when closed
   v.nvim_win_set_cursor(0, { 1, 0 }) -- Return cursor to top of file
 
   -- Set keymap for sending
@@ -224,21 +224,19 @@ s.compose = function(to)
       split = 'left',
       win = 0
     })
-
   end, { buffer = true })
 
   -- Keymap for sending the email
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
     if confirm_sendmail() then
       if u.empty_attachment_window(buf_attach) then
-	build_plain_msg(buf)
+        build_plain_msg(buf)
       else
-	build_mime_msg(buf, buf_attach, compose_filename)
+        build_mime_msg(buf, buf_attach, compose_filename)
       end
 
       s.sendmail(compose_filename)
     end
-
   end, { buffer = true })
 end
 
