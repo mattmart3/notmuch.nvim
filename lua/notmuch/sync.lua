@@ -112,7 +112,6 @@ ui.create_sync_buffer = function()
 	return buf
 end
 
--- Export UI functions for other modules
 s.ui = ui
 
 s.sync_maildir = function()
