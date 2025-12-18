@@ -260,6 +260,24 @@ option will be listed with its default value.
   Default value:
     `mbsync -c $XDG_CONFIG_HOME/isync/mbsyncrc -a`
 
+*sync_mode*
+  Controls how the mail synchronization is displayed and managed. This option
+  accepts the following values:
+
+  - `"buffer"` (default):
+    Shows sync output in a dedicated buffer. The buffer displays real-time
+    output from the sync command and can be cancelled with `<C-c>`. The buffer
+    remains open after completion to review the output.
+
+  - `"background"`:
+    Runs the sync operation completely in the background with no visible
+    output. Only notifications are shown when the sync starts and completes.
+    This mode is ideal for automated syncing where you don't need to see the
+    process details.
+
+  Default value:
+    `"buffer"`
+
 *open_cmd*
   Catch-all program to invoke when opening attachments from messages. This is
   initially based on operating system, but can be customized to something
@@ -488,6 +506,7 @@ plugin's project codebase.
     - Executes the sync command defined in `NotmuchMaildirSyncCmd` followed 
       by refreshing the Notmuch database with `notmuch new`.
     - Operates asynchronously, ensuring a non-blocking experience.
+    - Supports configurable sync modes via the `sync_mode` option.
 
   - **float.lua**:
     - Implements floating windows for displaying custom content or terminals.

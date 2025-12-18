@@ -48,6 +48,9 @@ C.defaults = function()
     from = name .. ' <' .. email .. '>',
     maildir_sync_cmd = 'mbsync -a',
     open_cmd = 'xdg-open',
+    sync = {
+      sync_mode = "buffer",
+    },
     keymaps = { -- This should capture all notmuch.nvim related keymappings
       sendmail = '<C-g><C-g>',
       attachment_window = '<C-g><C-a>',
