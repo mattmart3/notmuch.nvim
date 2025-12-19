@@ -145,6 +145,15 @@ s.sync_maildir = function()
 		buf = ui.create_sync_buffer()
 	end
 
+	-- Set initial buffer text with user friendly instructions
+	ui.safe_buf_set_option(buf, "modifiable", true)
+	ui.safe_buf_set_lines(buf, 0, -1, false, {
+		"== Syncing (Press `<C-c>` to cancel) ==",
+		"",
+		"> " .. sync_cmd,
+		"",
+	})
+
 	local output = {}
 
 	local job_id = s.create_job(sync_cmd, {
