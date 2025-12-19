@@ -260,7 +260,7 @@ option will be listed with its default value.
   Default value:
     `mbsync -c $XDG_CONFIG_HOME/isync/mbsyncrc -a`
 
-*sync_mode*
+*sync.sync_mode*
   Controls how the mail synchronization is displayed and managed. This option
   accepts the following values:
 
