@@ -91,8 +91,7 @@ ui.switch_to_buffer = function(buf)
 end
 
 ui.create_sync_buffer = function()
-	vim.cmd("new")
-	vim.cmd("resize 10")
+	vim.cmd("10new")
 	local buf = vim.api.nvim_get_current_buf()
 	vim.bo[buf].buftype = "nofile"
 	vim.bo[buf].bufhidden = "wipe"
