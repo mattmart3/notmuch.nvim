@@ -66,12 +66,14 @@ end
 ui.setup_cancel_keymap = function(buf, job_id, opts)
 	opts = opts or {}
 	vim.keymap.set('n', '<C-c>', function()
-		if s.stop_job(job_id) then
+		if s.is_job_running(job_id) and s.stop_job(job_id) then
 			if vim.api.nvim_buf_is_valid(buf) then
 				ui.safe_buf_set_option(buf, "modifiable", true)
 				ui.safe_buf_set_lines(buf, -1, -1, false, {"", opts.cancel_msg or "Job cancelled!"})
 				ui.safe_buf_set_option(buf, "modifiable", false)
 			end
+		elseif not s.is_job_running(job_id) then
+			vim.notify('Sync job already exited', vim.log.levels.WARN)
 		end
 	end, { buffer = buf, desc = opts.desc or "Cancel job" })
 end
