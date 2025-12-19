@@ -51,18 +51,8 @@ ui.safe_buf_set_lines = function(buf, start, end_, strict, lines)
 	end
 end
 
-ui.find_buffer_by_name = function(pattern)
-	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-		local name = vim.api.nvim_buf_get_name(buf)
-		if name:match(pattern) then
-			return buf
-		end
-	end
-	return nil
-end
-
 ui.find_sync_buffer = function()
-	return ui.find_buffer_by_name("notmuch%-sync$")
+	return vim.fn.bufnr('notmuch-sync')
 end
 
 ui.clear_buffer = function(buf)
@@ -118,7 +108,7 @@ s.sync_maildir = function()
 	-- Check if sync is already running
 	if current_sync_job then
 		local buf = ui.find_sync_buffer()
-		if buf then
+		if buf ~= -1 then
 			ui.switch_to_buffer(buf)
 			vim.notify("Sync is already running. Showing existing sync buffer.", vim.log.levels.WARN)
 		else
@@ -148,7 +138,7 @@ s.sync_maildir = function()
 	vim.notify("Syncing and reindexing your Maildir...", vim.log.levels.INFO)
 
 	local buf = ui.find_sync_buffer()
-	if buf then
+	if buf ~= -1 then
 		ui.switch_to_buffer(buf)
 		ui.clear_buffer(buf)
 	else
