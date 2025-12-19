@@ -79,14 +79,9 @@ ui.setup_cancel_keymap = function(buf, job_id, opts)
 end
 
 ui.switch_to_buffer = function(buf)
-	for _, win in ipairs(vim.api.nvim_list_wins()) do
-		if vim.api.nvim_win_get_buf(win) == buf then
-			vim.api.nvim_set_current_win(win)
-			return true
-		end
-	end
-	if vim.api.nvim_get_current_buf() ~= buf then
-		vim.api.nvim_set_current_buf(buf)
+	local win = vim.fn.bufwinid(buf)
+	if win ~= -1 then
+		vim.api.nvim_set_current_win(win)
 		return true
 	end
 	return false
