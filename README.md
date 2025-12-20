@@ -4,8 +4,6 @@ A powerful and flexible mail reader interface for NeoVim. This plugin bridges
 your email and text editing experiences directly within NeoVim by interfacing
 with the [Notmuch mail indexer](https://notmuchmail.org).
 
-## Table of Contents
-
 1. [Introduction](#introduction)
 2. [Feature Overview](#feature-overview)
 3. [Requirements](#requirements)
@@ -98,6 +96,7 @@ You can configure several global options to tailor the plugin's behavior:
 | :----------------- | :--------------------------------------: | :------------       |
 | `notmuch_db_path`  | Directory containing the `.notmuch/` dir | `$HOME/Mail`        |
 | `maildir_sync_cmd` | Bash command to run for syncing maildir  | `mbsync -a`         |
+| `sync.sync_mode`   | Async mode for the `maildir_sync_cmd`    | `buffer`            |
 | `open_cmd`         | Bash command for opening attachments     | `xdg-open`          |
 | `keymaps`          | Configure any (WIP) command's keymap     | See `config.lua`[1] |
 
@@ -109,8 +108,11 @@ Example in plugin manager (lazy.nvim):
 {
     "yousefakbar/notmuch.nvim",
     opts = {
-        notmuch_db_path = "/home/xxx/Documents/Mail"
-        maildir_sync_cmd = "mbsync personal"
+        notmuch_db_path = "/home/xxx/Documents/Mail",
+        maildir_sync_cmd = "mbsync personal",
+        sync = {
+            mode = "buffer" -- OR "background"
+        },
         keymaps = {
             sendmail = "<C-g><C-g>",
         },
