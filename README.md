@@ -111,7 +111,7 @@ Example in plugin manager (lazy.nvim):
         notmuch_db_path = "/home/xxx/Documents/Mail",
         maildir_sync_cmd = "mbsync personal",
         sync = {
-            mode = "buffer" -- OR "background"
+            sync_mode = "buffer" -- OR "background"
         },
         keymaps = {
             sendmail = "<C-g><C-g>",
