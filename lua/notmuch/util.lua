@@ -28,6 +28,20 @@ u.empty_attachment_window = function (buf_attach)
   return true
 end
 
+u.format_size = function (bytes)
+  if bytes == 0 or bytes == nil then
+    return "—"
+  elseif bytes < 1024 then
+    return bytes .. "B"
+  elseif bytes < 1024 * 1024 then
+    return string.format("%.0fK", bytes / 1024)
+  elseif bytes < 1024 * 1024 * 1024 then
+    return string.format("%.1fM", bytes / (1024 * 1024))
+  else
+    return string.format("%.1fG", bytes / (1024 * 1024 * 1024))
+  end
+end
+
 u.file_exists = function(path)
   local file = io.open(path, 'r')
   if file then
