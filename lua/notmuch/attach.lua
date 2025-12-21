@@ -193,18 +193,107 @@ local function format_part_line(parts_list)
   return output
 end
 
--- TODO generalize this: <dontcare>/<extension part
-a.save_attachment_part = function(savedir)
-  if savedir then dir = savedir else dir = '.' end
-  local n = v.nvim_win_get_cursor(0)[1]
-  local l = vim.fn.getline(n)
+--- Saves the MIME part at cursor to disk.
+--
+-- When prompt_user is true, prompts for save location with interactive input.
+-- Supports directory-only input (will append original filename).
+-- Validates directory existence/writability and confirms overwrites.
+--
+---@param savedir string|nil Directory to save to (defaults to cwd when prompting, '.' otherwise)
+---@param prompt_user boolean Whether to prompt for save location
+---@return string|nil filepath Path to saved file, or nil if cancelled/failed
+a.save_attachment_part = function(savedir, prompt_user)
+  -- Get part details from current cursor location
+  local part = get_part_at_cursor()
+
+  -- If not a valid part, return early
+  if not part then
+    return nil
+  end
+
+  -- Extract message ID from buffer name
   local id = string.match(v.nvim_buf_get_name(0), 'id:%C+')
-  local ext = string.match(l, '%w+/(%w+)')
-  if ext == 'plain' then ext = 'txt' end
-  local f = dir .. '/notmuch.' .. ext
-  os.execute('notmuch show --exclude=false --part=' .. n .. ' ' .. id .. '>' .. f)
-  print('Saved to: ' .. f)
-  return f
+
+  -- Use actual filename if available, otherwise generate from content-type
+  local filename = part.filename
+  if filename == "" then
+    local ext = string.match(part.content_type, '%w+/(%w+)')
+    if ext == 'plain' then ext = 'txt' end
+    filename = 'notmuch.' .. ext
+  end
+
+  -- Set directory in which to save the attachment part
+  -- local dir = savedir or '.'
+
+  local filepath
+
+  -- If prompt user is true, have the user select and confirm the save location
+  if prompt_user then
+    -- Determine default directory (savedir or current directory)
+    local default_dir = savedir or vim.fn.getcwd()
+    local default_path = default_dir .. '/' .. filename
+
+    -- Prompt user for save location
+    filepath = vim.fn.input('Save file: ', default_path, 'file')
+    vim.cmd('redraw')
+
+    -- If user cancels (ESC or empty input), return nil
+    if filepath == '' then
+      vim.notify('Save cancelled', vim.log.levels.INFO)
+      return nil
+    end
+
+    -- Expand path (handles ~ and environment variables)
+    filepath = vim.fn.expand(filepath)
+
+    -- If user provided a directory, append the filename
+    if vim.fn.isdirectory(filepath) == 1 then
+      -- Remove trailing slash if present, then add filename
+      filepath = filepath:gsub('/$', '') .. '/' .. filename
+    end
+
+    -- Extract directory from filepath
+    local dir = vim.fn.fnamemodify(filepath, ':h')
+
+    -- Check if directory exists
+    if  vim.fn.isdirectory(dir) == 0 then
+      vim.notify('Directory does not exist', vim.log.levels.ERROR)
+      return nil
+    end
+
+    -- Check if directory is writable
+    if vim.fn.filewritable(dir) ~= 2 then
+      vim.notify('Directory is not writable', vim.log.levels.ERROR)
+      return nil
+    end
+
+    -- Check if file already exists - If so, prompt for confirmation
+    if vim.fn.filereadable(filepath) == 1 then
+      local confirm = vim.fn.confirm('File exists. Overwrite?', '&Yes\n&No', 2)
+      vim.cmd('redraw')
+      if confirm ~= 1 then
+        vim.notify('Save cancelled', vim.log.levels.INFO)
+        return nil
+      end
+    end
+  else
+    -- No prompt -- This is used by open/view attachment
+    local dir = savedir or '.'
+    filepath = dir .. '/' .. filename
+  end
+
+  -- Save the file using notmuch (properly escape filepath)
+  local cmd = string.format("notmuch show --exclude=false --part=%d '%s' > %s",
+    part.id, id, vim.fn.shellescape(filepath))
+  vim.fn.system(cmd)
+
+  if vim.v.shell_error == 0 then
+    print('Saved to: ' .. filepath)
+    return filepath
+  else
+    print('Failed to save attachment')
+    return nil
+  end
 end
 
 --- Opens an attachment listing buffer for the email message at the cursor position.
