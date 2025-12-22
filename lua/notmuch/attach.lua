@@ -62,11 +62,20 @@ local function get_part_at_cursor()
   return parts_list[parts_index]
 end
 
--- TODO generalize this: <dontcare>/<extension part
+--- Opens the MIME part at cursor with the configured open_handler.
+--
+-- Saves the attachment to /tmp first, then passes the path to the
+-- open_handler callback (typically xdg-open or similar).
+--
+---@return nil
 a.open_attachment_part = function()
-  local f = a.save_attachment_part('/tmp')
-  -- os.execute(config.options.open_handler .. ' ' .. f)
-  config.options.open_handler({path = f})
+  local filepath = a.save_attachment_part('/tmp', false)
+
+  if not filepath then
+    return nil
+  end
+
+  config.options.open_handler({ path = filepath})
 end
 
 a.view_attachment_part = function()
