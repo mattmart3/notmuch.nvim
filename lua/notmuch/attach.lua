@@ -78,36 +78,51 @@ a.open_attachment_part = function()
   config.options.open_handler({ path = filepath})
 end
 
+--- Views the MIME part at cursor in a floating window.
+--
+-- Saves the attachment to /tmp, processes it with view_handler,
+-- and displays the output in a centered floating window.
+-- Press 'q' to close the window.
+--
+---@return nil
 a.view_attachment_part = function()
-  local f = a.save_attachment_part('/tmp')
-  -- local output = vim.fn.system({config.options.view_handler, f})
-  local output = config.options.view_handler({path = f})
+  -- Save to temp directory without prompting
+  local filepath = a.save_attachment_part('/tmp', false)
 
+  -- If save fails, return early
+  if not filepath then
+    return nil
+  end
+
+  -- Process with user's configured view_handler
+  local output = config.options.view_handler({ path = filepath })
   local lines = u.split(output, "[^\r\n]+")
 
+  -- Create new buffer for floating window
   local buf = v.nvim_create_buf(true, true)
 
-
-  -- calculate the position to center the window
+  -- Floating window - calculate size
   local width = math.floor(vim.o.columns * 0.8)
   local height = math.floor(vim.o.lines * 0.8)
   local col = math.floor((vim.o.columns - width) / 2)
   local row = math.floor((vim.o.lines - height) / 2)
 
   local win = vim.api.nvim_open_win(buf, true, {
-      border = "rounded",
-      relative = "editor",
-      style = "minimal",
-      height = height,
-      width = width,
-      row = row,
-      col = col,
+    border = "rounded",
+    relative = "editor",
+    style = "minimal",
+    height = height,
+    width = width,
+    row = row,
+    col = col,
   })
 
   v.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-  vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
-  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, false) end, { buffer = buf })
+  v.nvim_set_option_value('modifiable', false, { buf = buf })
+  vim.keymap.set('n', 'q', function()
+    v.nvim_win_close(win, false)
+  end, { buffer = buf })
 end
 
 --- Recursively parses a MIME tree from notmuch JSON output and collects openable parts.
