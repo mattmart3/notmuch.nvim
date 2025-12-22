@@ -96,7 +96,7 @@ a.view_attachment_part = function()
 
   -- Process with user's configured view_handler
   local output = config.options.view_handler({ path = vim.fn.shellescape(filepath) })
-  local lines = u.split(output, "[^\r\n]+")
+  local lines = vim.split(output, '\n')
 
   -- Create new buffer for floating window
   local buf = v.nvim_create_buf(true, true)
