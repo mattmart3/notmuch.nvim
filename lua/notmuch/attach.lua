@@ -75,7 +75,7 @@ a.open_attachment_part = function()
     return nil
   end
 
-  config.options.open_handler({ path = filepath})
+  config.options.open_handler({ path = vim.fn.shellescape(filepath) })
 end
 
 --- Views the MIME part at cursor in a floating window.
@@ -95,7 +95,7 @@ a.view_attachment_part = function()
   end
 
   -- Process with user's configured view_handler
-  local output = config.options.view_handler({ path = filepath })
+  local output = config.options.view_handler({ path = vim.fn.shellescape(filepath) })
   local lines = u.split(output, "[^\r\n]+")
 
   -- Create new buffer for floating window
