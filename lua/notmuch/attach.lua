@@ -99,7 +99,7 @@ a.view_attachment_part = function()
   local lines = vim.split(output, '\n')
 
   -- Create new buffer for floating window
-  local buf = v.nvim_create_buf(true, true)
+  local buf = v.nvim_create_buf(false, true)
 
   -- Floating window - calculate size
   local width = math.floor(vim.o.columns * 0.8)
