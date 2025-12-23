@@ -110,8 +110,13 @@ H.default_view_handler = function(attachment)
     return vim.fn.system({ 'cat', path })
   end
 
-  -- TODO replace with `try_commands` with `strings`
-  return ''
+  return try_commands({
+    { tool = 'strings', command = function(p) return { 'strings', p } end },
+  }) or string.format(
+    "Unable to view binary file\nType: %s\nPath: %s",
+    filetype,
+    path
+  )
 end
 
 return H
