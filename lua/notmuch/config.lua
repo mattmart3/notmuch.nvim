@@ -52,10 +52,10 @@ C.defaults = function()
       sync_mode = "buffer",
     },
     open_handler = function(attachment)
-      os.execute('xdg-open ' .. attachment.path .. ' >/dev/null 2>/dev/null')
+      require('notmuch.handlers').default_open_handler(attachment)
     end,
     view_handler = function(attachment)
-      return vim.fn.system({"view-handler", attachment.path})
+      return require('notmuch.handlers').default_view_handler(attachment)
     end,
     keymaps = { -- This should capture all notmuch.nvim related keymappings
       sendmail = '<C-g><C-g>',
