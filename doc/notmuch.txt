@@ -66,7 +66,8 @@ Here is a non-comprehensive list of features of notmuch.nvim:
   - Messages indented based on reply level
 - Inspect the attachments of messages
   - Save to current directory
-  - View attachment with `open(1)`-like command
+  - Open attachments externally with OS-aware handler (customizable)
+  - View attachments as text in floating window with format conversion
   - Plain text message is automatically displayed
 - Sync your mail with simple mappings
   - Native support for `isync(1)`/`mbsync(1)`
@@ -218,26 +219,6 @@ Notmuch.nvim plugin and the local mail system to search and browse.
 		     with the `inbox` tag. Essentially implemented by the
 		     |NmSearch| command.
 
-                                                    *:NmNew*
-:NmNew               Invoke `notmuch new` in the external shell to refresh
-                     your Notmuch database. This is a modular command to be
-		     used when you have new mail or would like to refresh your
-		     tags for whatever reason.
-
-                                                    *:NmSync*
-:NmSync              Refresh and synchronize your local Maildir directories
-                     with the remote server to keep them on track with each
-		     other. Typically this (1) invokes a remote synchronizing
-		     command in the shell (`mbsync(1)` by default) and then
-		     (2) refreshes your notmuch database with `notmuch new` .
-
-		     Note: By default, the sync command is set to: >
-
-		       mbsync -c $XDG_CONFIG_HOME/isync/mbsyncrc -a
-<
-                     But this command can be customized by setting
-		     |maildir_sync_cmd| to a valid command.
-
 ------------------------------------------------------------------------------
 OPTIONS                                                       *notmuch-options*
 
@@ -250,7 +231,7 @@ option will be listed with its default value.
   that contains the `.notmuch` directory.
 
   Default value:
-    `'$HOME/Mail'`
+    Fetched from `notmuch` config.
 
 *maildir_sync_cmd*
   Program to run when synchronizing your local maildir mail to the remote
@@ -258,7 +239,7 @@ option will be listed with its default value.
   in this option. See |:NmSync| to see how this is used.
 
   Default value:
-    `mbsync -c $XDG_CONFIG_HOME/isync/mbsyncrc -a`
+    `mbsync -a`
 
 *sync.sync_mode*
   Controls how the mail synchronization is displayed and managed. This option
@@ -278,18 +259,55 @@ option will be listed with its default value.
   Default value:
     `"buffer"`
 
-*open_cmd*
-  Catch-all program to invoke when opening attachments from messages. This is
-  initially based on operating system, but can be customized to something
-  else.
+*open_handler*
+  Callback function for opening attachments externally with system applications.
+  The function receives an attachment table with a 'path' field containing the
+  file path.
 
-  Default value:
-    `open(1)`        if MacOS.
-    `xdg_open(1)`    otherwise
+  Default behavior:
+    Automatically detects your OS and uses:
+    - `open` on macOS
+    - `xdg-open` on Linux
+    - `start` on Windows
+
+  Example customization: >
+
+    require('notmuch').setup({
+      open_handler = function(attachment)
+        vim.fn.system({ 'my-opener', attachment.path })
+      end,
+    })
+<
+
+*view_handler*
+  Callback function for converting attachments to text for display in a
+  floating window within Neovim. The function receives an attachment table
+  with a 'path' field and must return a string to display.
+
+  Default behavior:
+    Supports HTML, PDF, images, Office documents, Markdown, archives, and
+    plain text. Tries multiple CLI tools for each format (e.g., w3m/lynx for
+    HTML, pdftotext/mutool for PDF) and falls back gracefully if tools aren't
+    available.
+
+  Example customization: >
+
+    require('notmuch').setup({
+      view_handler = function(attachment)
+        local path = attachment.path
+        if path:match('%.pdf$') then
+          return vim.fn.system({ 'pdftotext', '-layout', path, '-' })
+        end
+        return vim.fn.system({ 'cat', path })
+      end,
+    })
+<
+
+  Note: See lua/notmuch/handlers.lua for the complete default implementation.
 
 *keymaps*
   Keymap configuration table where you can override plugin defaults for all
-  sorts of commands. Right now it only supports override for `sendmail` but it
+  sorts of commands. Right now it only supports override for `msmtp` but it
   will be extended to be able to configure every keymap in the plugin.
 
   Default value:
@@ -306,15 +324,16 @@ functons (|command-completion-custom|).
 
 Although this is used for |:NmSearch|, you can actually use this as a
 completion function for any custom commands you may want to define. The
-completion function returns two types of results:
+completion function returns a few types of results:
 
-  * If the word under the cursor says 'tags:', returns a list of all the tags
+  * If the word under the cursor says 'tag:', returns a list of all the tags
     available in the notmuch database.
+  * Similar completions are done intelligently for search terms like 'is:',
+    'mimetype', 'folder:', 'path:'.
+  * Address completion can be used with 'from:', 'to:'. Especially useful for
+    composing emails too.
   * Otherwise returns a list of all the valid search terms (see
-    `notmuch-search-terms(1)`)
-
-Note: Interestingly enough, this is the only bit of Vimscript logic used in
-the entire plugin (at least as of right now).
+    `notmuch-search-terms(1)`).
 
 ==============================================================================
 BEHAVIOR                                                     *notmuch-behavior*
@@ -347,6 +366,9 @@ related to buffers:
   - *Thread View Buffer*:
     Provides a detailed view of a thread, displaying messages in an indented 
     and folded format.
+  - *Attachment listing buffer*:
+    Provides a listing of the attachments within a message, available for
+    saving, viewing within nvim, or opening externally.
 
 - *Buffer Navigation* ~
   - Pressing <CR> on a tag in the Tags Buffer initiates a search for threads 
@@ -422,8 +444,6 @@ chosen highlighting rules.
     - **Thread View Buffer**: Indented replies and folded messages are
       visually structured, making it easy to understand the flow of
       conversations.
-    - **Attachments Buffer**: Different content types (e.g., `text/plain`,
-      `image/jpeg`) are highlighted to help identify attachment formats.
 
 - *Tags Highlighting* ~
   - Tags like `inbox`, `unread`, and `flagged` are highlighted with specific 
@@ -494,12 +514,45 @@ plugin's project codebase.
       - Save attachments to a directory.
       - Open attachments using external programs.
     - Supports extracting URLs from messages and following GitHub patch links.
-    - (TODO) : Add attachments later for composing emails
+
+  - **handlers.lua**:
+    - Defines default handlers for opening and viewing attachments.
+    - **default_open_handler()**: OS-aware external opener using open,
+      xdg-open, or start depending on the platform.
+    - **default_view_handler()**: Converts various file formats to text for
+      in-buffer display. Supports HTML (w3m, lynx, elinks), PDF (pdftotext,
+      mutool), images (chafa, catimg, viu, exiftool), Office documents
+      (pandoc, docx2txt), Markdown, and archives (zip, tar).
+    - Users can override these handlers via |open_handler| and |view_handler|
+      configuration options.
 
   - **send.lua**:
     - Implements the methods for composing and replying to emails.
     - Uses `msmtp` as a standard mailsend command
       - TODO: Will make this command configurable by the user.
+
+  - **mime.lua**:
+    - Handles MIME message construction for email composition.
+    - Builds multipart MIME messages with proper boundaries.
+    - Supports attaching files to outgoing emails.
+    - Handles proper encoding and formatting of email parts.
+
+  - **base64.lua**:
+    - Provides Base64 encoding and decoding functionality.
+    - Used for encoding email attachments in MIME messages.
+    - Pure Lua implementation for portability.
+
+  - **async.lua**:
+    - Provides non-blocking subprocess execution via vim.loop.spawn().
+    - Used for asynchronous operations like searching and syncing.
+    - Ensures the UI remains responsive during long-running operations.
+    - Streams results incrementally as they become available.
+
+  - **refresh.lua**:
+    - Handles buffer refresh logic for all buffer types.
+    - Updates tag lists, search results, thread views, and attachment lists.
+    - Preserves cursor position when refreshing buffers.
+    - Integrates with the caching system to efficiently reload content.
 
   - **sync.lua**:
     - Handles synchronization of the Maildir with the remote server.
@@ -594,27 +647,15 @@ enhance the plugin’s functionality, user experience, and developer
 accessibility.
 
 - *Current Limitations* ~
-  - Some advanced Notmuch features (e.g., specific query operators or rare
-    database manipulations) are not yet exposed through the plugin.
   - Limited configuration options for customizing tag and thread highlighting.
-  - Attachment handling could be more robust, with better support for various
-    MIME types.
-  - The plugin depends heavily on the presence of external tools like
-    `mbsync`, which may limit portability. Make it configurable.
-  - Missing send/compose/reply feature. As of now it is read mail only.
 
 - *Planned Features* ~
   - Improved highlighting customization, allowing users to define their own
     colors and styles for tags, threads, and message components.
-  - Expanded Lua API to expose more of Notmuch’s functionality for advanced
-    scripting.
-  - Enhanced error handling and debugging tools to assist developers and users
+  - Enhanced test handling and debugging tools to assist developers and users
     in troubleshooting.
   - Integration with other plugins or external tools (e.g., email encryption
     workflows, calendar integration).
-  - Improved attachment handling, including preview and inline viewing
-    options.
-  - Implement send/compose/reply feature.
 
 - *Community Contributions* ~
   Contributions are welcome! Key areas where developers can assist:

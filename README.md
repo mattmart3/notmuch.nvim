@@ -92,18 +92,19 @@ Here are the core commands within Notmuch.nvim:
 
 You can configure several global options to tailor the plugin's behavior:
 
-| Option             | Description                              | Default       |
-| :----------------- | :--------------------------------------: | :------------       |
-| `notmuch_db_path`  | Directory containing the `.notmuch/` dir | `$HOME/Mail`        |
-| `maildir_sync_cmd` | Bash command to run for syncing maildir  | `mbsync -a`         |
-| `sync.sync_mode`   | Async mode for the `maildir_sync_cmd`    | `buffer`            |
-| `open_handler`         | Callback function for opening attachments     | By default runs `xdg-open`          |
-| `view_handler`         | Callback function for converting attachments to text to view in vim buffer     | By default runs `view-handler`          |
-| `keymaps`          | Configure any (WIP) command's keymap     | See `config.lua`[1] |
+| Option             | Description                                                                     | Default                         |
+| :----------------- | :-----------------------------------------------------------------------------: | :------------------------------ |
+| `notmuch_db_path`  | Directory containing the `.notmuch/` dir                                        | `$HOME/Mail`                    |
+| `maildir_sync_cmd` | Bash command to run for syncing maildir                                         | `mbsync -a`                     |
+| `sync.sync_mode`   | Async mode for the `maildir_sync_cmd`                                           | `buffer`                        |
+| `keymaps`          | Configure any (WIP) command's keymap                                            | See `config.lua`[1]             |
+| `open_handler`     | Callback function for opening attachments                                       | Runs OS-aware `open`[2]         |
+| `view_handler`     | Callback function for converting attachments to text to view in floating window | See `default_view_handler()`[2] |
 
 [1]: https://github.com/yousefakbar/notmuch.nvim/blob/main/lua/notmuch/config.lua
+[2]: https://github.com/yousefakbar/notmuch.nvim/blob/main/lua/notmuch/handlers.lua
 
-Example in plugin manager (lazy.nvim):
+Example configuration in plugin manager (lazy.nvim):
 
 ```lua
 {
@@ -121,19 +122,43 @@ Example in plugin manager (lazy.nvim):
 },
 ```
 
-Example `view-handler`:  
-*make sure the `view-handler` is available in your PATH*
+### Customizing Attachment Handlers
 
-``` sh
-#!/bin/sh
+The plugin provides two handlers for working with attachments:
 
-case "$1" in
-  *.html ) cat "$1" | w3m -T "text/html" -dump | col ;;
-  # *.pdf ) pdftohtml "$1" - | w3m -T "text/html" -dump | col ;;
-  *.pdf ) mutool draw -F html -o - "$1" | w3m -T "text/html" -dump | col ;;
-  *) echo "Unable to convert to text!" ;;
-esac
+**Open Handler**: Opens attachments externally with your system's default
+application. The default handler automatically detects your OS and uses `open`
+(macOS), `xdg-open` (Linux), or `start` (Windows).
+
+**View Handler**: Converts attachments to text for display in a floating window
+within Neovim. The default handler supports HTML, PDF, images, Office documents,
+Markdown, archives, and plain text files. It tries multiple CLI tools for each
+format and falls back gracefully if tools aren't available.
+
+To customize either handler, pass a function to `setup()`:
+
+```lua
+require('notmuch').setup({
+    -- Custom open handler
+    open_handler = function(attachment)
+        -- attachment.path contains the full file path
+        vim.fn.system({ 'my-custom-opener', attachment.path })
+    end,
+
+    -- Custom view handler
+    view_handler = function(attachment)
+        -- Must return a string to display in the floating window
+        local path = attachment.path
+        if path:match('%.pdf$') then
+            return vim.fn.system({ 'pdftotext', '-layout', path, '-' })
+        end
+        return vim.fn.system({ 'cat', path })
+    end,
+})
 ```
+
+The default handlers are defined in `lua/notmuch/handlers.lua` and handle many
+common formats out of the box. Only override them if you need specific behavior.
 
 ## License
 
