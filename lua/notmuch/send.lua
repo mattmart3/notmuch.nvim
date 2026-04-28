@@ -222,11 +222,22 @@ s.reply = function()
   -- Create and edit buffer containing reply file
   local buf = v.nvim_create_buf(true, false)
   v.nvim_win_set_buf(0, buf)
+
   vim.cmd.edit(reply_filename)
 
   -- If first time replying, generate draft. Otherwise, no need to duplicate
   if not u.file_exists(reply_filename) then
     vim.cmd('silent 0read! notmuch reply id:' .. id)
+  end
+
+  -- Add Bcc to self
+  if vim.fn.search("^Bcc:", "nw") == 0 then
+    local row = vim.fn.search("^From:", "nw")
+    if row > 0 then
+      local line = vim.fn.getline(row)
+      local new_line = line:gsub("^From:", "Bcc:", 1)
+      vim.api.nvim_buf_set_lines(0, row, row, false, { new_line })
+    end
   end
 
   vim.bo.bufhidden = "wipe"          -- Automatically wipe buffer when closed
@@ -298,6 +309,7 @@ s.compose = function(to)
     'From: ' .. config.options.from,
     'To: ' .. to,
     'Cc: ',
+    'Bcc: ' .. config.options.from,
     'Subject: ',
     '',
     'Message body goes here. Add attachments with "' ..
